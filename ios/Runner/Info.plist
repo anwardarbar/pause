@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Microphone access — required for voice expense entry -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Pause uses the microphone to record your expenses by voice.</string>
+	<!-- Speech recognition — required for speech_to_text -->
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Pause uses speech recognition to convert your voice into expense entries.</string>
 </dict>
 </plist>

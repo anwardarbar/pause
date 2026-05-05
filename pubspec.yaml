@@ -21,7 +21,7 @@ dependencies:
   riverpod_annotation: ^2.3.5
 
   # Voice input
-  speech_to_text: ^6.6.0
+  speech_to_text: ^7.3.0
 
   # Utilities
   uuid: ^4.3.3
