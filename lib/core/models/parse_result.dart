@@ -1,4 +1,6 @@
+import 'package:uuid/uuid.dart';
 import 'enums.dart';
+import 'financial_event.dart';
 
 // ParseResult is a CANDIDATE — not a saved event.
 // It becomes a FinancialEvent only after the user confirms.
@@ -56,6 +58,46 @@ class ParseResult {
       source: source ?? this.source,
     );
   }
+
+  /// Converts this confirmed candidate into a [FinancialEvent] ready to save.
+  /// [clearRawInput] is true when confidence >= 0.8 OR user edited any field.
+  FinancialEvent toFinancialEvent({
+    String? id,
+    required DateTime createdAt,
+    required bool clearRawInput,
+    InputSource source = InputSource.voice,
+  }) {
+    return FinancialEvent(
+      id: id ?? const Uuid().v4(),
+      type: type,
+      amount: amount ?? 0,
+      currency: currency,
+      category: category,
+      paymentMethod: paymentMethod,
+      note: note,
+      source: source,
+      confidence: confidence,
+      rawInput: clearRawInput ? null : toString(),
+      createdAt: createdAt,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ParseResult &&
+          other.type == type &&
+          other.amount == amount &&
+          other.currency == currency &&
+          other.category == category &&
+          other.paymentMethod == paymentMethod &&
+          other.note == note &&
+          other.confidence == confidence &&
+          other.source == source;
+
+  @override
+  int get hashCode => Object.hash(
+        type, amount, currency, category, paymentMethod, note, confidence, source);
 
   @override
   String toString() =>
