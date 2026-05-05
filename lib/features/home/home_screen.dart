@@ -1,18 +1,25 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/models/enums.dart';
 import '../../core/providers/home_stats_provider.dart';
 import '../../core/providers/input_overlay_provider.dart';
 import '../../core/providers/timeline_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../detail/detail_screen.dart';
 import 'widgets/hero_stat_card.dart';
 import 'widgets/mic_button.dart';
 import 'widgets/recent_transaction_row.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   static final _currencyFormat = NumberFormat.currency(
     locale: 'en_IN',
     symbol: '₹',
@@ -20,10 +27,62 @@ class HomeScreen extends ConsumerWidget {
   );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    // Request mic permission after first frame — less jarring than on cold start
+    WidgetsBinding.instance.addPostFrameCallback((_) => _requestMicPermission());
+  }
+
+  Future<void> _requestMicPermission() async {
+    final status = await Permission.microphone.status;
+    if (status.isDenied) {
+      final result = await Permission.microphone.request();
+      if (result.isPermanentlyDenied && mounted) {
+        _showPermissionDeniedDialog();
+      }
+    }
+  }
+
+  void _showPermissionDeniedDialog() {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Microphone Access'),
+        content: const Text(
+          'Pause needs microphone access to record your expenses by voice. '
+          'Please enable it in Settings → Pause → Microphone.',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Not Now'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('Open Settings'),
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openDetail(BuildContext context, EventType? typeFilter) {
+    Navigator.of(context).push(
+      CupertinoPageRoute<void>(
+        builder: (_) => DetailScreen(initialTypeFilter: typeFilter),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectedMonth = ref.watch(homeSelectedMonthProvider);
-    final statsAsync = ref.watch(homeStatsProvider);
-    final recentAsync = ref.watch(recentEventsProvider);
+    final statsAsync    = ref.watch(homeStatsProvider);
+    final recentAsync   = ref.watch(recentEventsProvider);
 
     final now = DateTime.now();
     final isCurrentMonth = selectedMonth.year == now.year &&
@@ -105,8 +164,8 @@ class HomeScreen extends ConsumerWidget {
                                   amount: _currencyFormat
                                       .format(stats.totalSaved),
                                   type: EventType.saved,
-                                  onTap: () =>
-                                      _openDetail(context, EventType.saved),
+                                  onTap: () => _openDetail(
+                                      context, EventType.saved),
                                 ),
                               ),
                             ],
@@ -133,6 +192,7 @@ class HomeScreen extends ConsumerWidget {
                                 style: AppTypography.headline),
                             GestureDetector(
                               onTap: () => _openDetail(context, null),
+
                               child: Text(
                                 'View all',
                                 style: AppTypography.body.copyWith(
@@ -227,10 +287,6 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  void _openDetail(BuildContext context, EventType? typeFilter) {
-    // Navigation wired in Layer 9 — placeholder push for now
-    // Detail screen receives typeFilter as one-time arg (not persisted to FilterProvider)
-  }
 }
 
 // ─── Month header ─────────────────────────────────────────────────────────────

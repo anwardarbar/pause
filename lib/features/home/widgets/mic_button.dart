@@ -1,8 +1,10 @@
 import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../core/input/voice_input_service.dart';
 import '../../../core/providers/input_overlay_provider.dart';
+import '../../../core/input/input_result.dart';
 import '../../../core/providers/input_providers.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -88,11 +90,54 @@ class _MicButtonState extends ConsumerState<MicButton>
 
   // ─── Gesture handlers ─────────────────────────────────────────────────────
 
+  Future<bool> _checkPermission() async {
+    final status = await Permission.microphone.status;
+    if (status.isGranted) return true;
+    if (status.isPermanentlyDenied) {
+      if (mounted) _showPermissionAlert(permanent: true);
+      return false;
+    }
+    final result = await Permission.microphone.request();
+    if (result.isGranted) return true;
+    if (mounted) _showPermissionAlert(permanent: result.isPermanentlyDenied);
+    return false;
+  }
+
+  void _showPermissionAlert({required bool permanent}) {
+    showCupertinoDialog<void>(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Microphone Access'),
+        content: Text(
+          permanent
+              ? 'Microphone is disabled. Go to Settings → Pause → Microphone to enable it.'
+              : 'Pause needs microphone access to record expenses by voice.',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Not Now'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          if (permanent)
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              child: const Text('Open Settings'),
+              onPressed: () {
+                Navigator.pop(context);
+                openAppSettings();
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _onTap() async {
     final service = ref.read(voiceInputServiceProvider);
     final state = service.currentState;
 
     if (state == VoiceState.idle) {
+      if (!await _checkPermission()) return;
       // Tap mode — recording until second tap
       _isHoldMode = false;
       ref.read(inputOverlayProvider.notifier).showVoice();
@@ -106,6 +151,7 @@ class _MicButtonState extends ConsumerState<MicButton>
   Future<void> _onLongPressStart(LongPressStartDetails _) async {
     final service = ref.read(voiceInputServiceProvider);
     if (service.currentState != VoiceState.idle) return;
+    if (!await _checkPermission()) return;
     _isHoldMode = true;
     ref.read(inputOverlayProvider.notifier).showVoice();
     await service.startListening();
@@ -256,5 +302,3 @@ class _MicButtonState extends ConsumerState<MicButton>
   }
 }
 
-// Re-export InputResult so mic_button callers don't need to import separately
-typedef InputResult = dynamic;
