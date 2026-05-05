@@ -19,6 +19,7 @@ class InputOverlayState {
     this.mode = InputMode.voice,
     this.voiceState = VoiceState.idle,
     this.liveTranscript = '',
+    this.rawText,
     this.parseResult,
     this.editedResult,
   });
@@ -27,6 +28,9 @@ class InputOverlayState {
   final InputMode mode;
   final VoiceState voiceState;
   final String liveTranscript;
+
+  /// The original user input text (voice transcript or typed text).
+  final String? rawText;
 
   /// The raw result from the orchestrator.
   final ParseResult? parseResult;
@@ -42,6 +46,7 @@ class InputOverlayState {
     InputMode? mode,
     VoiceState? voiceState,
     String? liveTranscript,
+    Object? rawText = _sentinel,
     Object? parseResult = _sentinel,
     Object? editedResult = _sentinel,
   }) {
@@ -50,6 +55,7 @@ class InputOverlayState {
       mode: mode ?? this.mode,
       voiceState: voiceState ?? this.voiceState,
       liveTranscript: liveTranscript ?? this.liveTranscript,
+      rawText: rawText == _sentinel ? this.rawText : rawText as String?,
       parseResult: parseResult == _sentinel
           ? this.parseResult
           : parseResult as ParseResult?,
@@ -89,7 +95,10 @@ class InputOverlayNotifier extends Notifier<InputOverlayState> {
   // ── Parsing ─────────────────────────────────────────────────────────────────
 
   Future<void> parseInput(String rawText) async {
-    state = state.copyWith(voiceState: VoiceState.processing);
+    state = state.copyWith(
+      voiceState: VoiceState.processing,
+      rawText: rawText,
+    );
 
     final orchestrator = ref.read(parseOrchestratorProvider);
     final result = await orchestrator.parse(rawText);
