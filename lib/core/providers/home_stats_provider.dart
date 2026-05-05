@@ -3,6 +3,22 @@ import '../models/enums.dart';
 import 'filter_provider.dart';
 import 'repository_provider.dart';
 
+// ─── Selected month (home screen only — independent of FilterProvider) ────────
+
+final homeSelectedMonthProvider = StateProvider<DateTime>(
+  (ref) => DateTime.now(),
+  name: 'homeSelectedMonthProvider',
+);
+
+DateRange _monthRange(DateTime month) {
+  final from = DateTime(month.year, month.month, 1);
+  final to = DateTime(month.year, month.month + 1, 1)
+      .subtract(const Duration(milliseconds: 1));
+  return DateRange(from: from, to: to);
+}
+
+// ─── HomeStats ────────────────────────────────────────────────────────────────
+
 class HomeStats {
   const HomeStats({
     required this.totalExpense,
@@ -28,12 +44,16 @@ class HomeStats {
 
 class HomeStatsNotifier extends AsyncNotifier<HomeStats> {
   @override
-  Future<HomeStats> build() => _fetch();
+  Future<HomeStats> build() {
+    // Rebuilds when selected month changes
+    ref.watch(homeSelectedMonthProvider);
+    return _fetch();
+  }
 
   Future<HomeStats> _fetch() async {
-    final repo = ref.watch(eventRepositoryProvider);
-    // Home screen always uses current month — never watches FilterProvider
-    final range = DateRange.currentMonth();
+    final repo = ref.read(eventRepositoryProvider);
+    final month = ref.read(homeSelectedMonthProvider);
+    final range = _monthRange(month);
 
     final results = await Future.wait([
       repo.getTotalByType(EventType.expense, range.from, range.to),

@@ -7,11 +7,16 @@ import 'home_stats_provider.dart';
 import 'timeline_provider.dart';
 import 'detail_stats_provider.dart';
 
+// ─── Input mode ───────────────────────────────────────────────────────────────
+
+enum InputMode { voice, text }
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 class InputOverlayState {
   const InputOverlayState({
     this.isVisible = false,
+    this.mode = InputMode.voice,
     this.voiceState = VoiceState.idle,
     this.liveTranscript = '',
     this.parseResult,
@@ -19,6 +24,7 @@ class InputOverlayState {
   });
 
   final bool isVisible;
+  final InputMode mode;
   final VoiceState voiceState;
   final String liveTranscript;
 
@@ -33,6 +39,7 @@ class InputOverlayState {
 
   InputOverlayState copyWith({
     bool? isVisible,
+    InputMode? mode,
     VoiceState? voiceState,
     String? liveTranscript,
     Object? parseResult = _sentinel,
@@ -40,6 +47,7 @@ class InputOverlayState {
   }) {
     return InputOverlayState(
       isVisible: isVisible ?? this.isVisible,
+      mode: mode ?? this.mode,
       voiceState: voiceState ?? this.voiceState,
       liveTranscript: liveTranscript ?? this.liveTranscript,
       parseResult: parseResult == _sentinel
@@ -62,7 +70,11 @@ class InputOverlayNotifier extends Notifier<InputOverlayState> {
 
   // ── Visibility ──────────────────────────────────────────────────────────────
 
-  void show() => state = state.copyWith(isVisible: true);
+  void showVoice() =>
+      state = state.copyWith(isVisible: true, mode: InputMode.voice);
+
+  void showText() =>
+      state = state.copyWith(isVisible: true, mode: InputMode.text);
 
   void hide() => state = const InputOverlayState(); // full reset
 

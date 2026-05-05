@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/financial_event.dart';
 import 'filter_provider.dart';
+import 'home_stats_provider.dart';
 import 'repository_provider.dart';
 
 class TimelineState {
@@ -127,15 +128,22 @@ final timelineProvider =
 );
 
 // ─── Recent-only provider for Home Screen ────────────────────────────────────
-// Home screen watches this — never FilterProvider.
+// Follows the home selected month — never FilterProvider.
 
 final recentEventsProvider = FutureProvider<List<FinancialEvent>>(
   (ref) async {
     final repo = ref.watch(eventRepositoryProvider);
-    final range = DateRange.currentMonth();
-    final all =
-        await repo.getByDateRange(range.from, range.to);
+    final month = ref.watch(homeSelectedMonthProvider);
+    final range = _monthRange(month);
+    final all = await repo.getByDateRange(range.from, range.to);
     return all.take(5).toList();
   },
   name: 'recentEventsProvider',
 );
+
+DateRange _monthRange(DateTime month) {
+  final from = DateTime(month.year, month.month, 1);
+  final to = DateTime(month.year, month.month + 1, 1)
+      .subtract(const Duration(milliseconds: 1));
+  return DateRange(from: from, to: to);
+}
