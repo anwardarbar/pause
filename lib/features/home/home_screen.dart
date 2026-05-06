@@ -78,6 +78,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    final overlayState = ref.read(inputOverlayProvider);
+    if (overlayState.hasResult) return; // confirmation card is showing — ignore
+    final vx = details.primaryVelocity ?? 0;
+    final selectedMonth = ref.read(homeSelectedMonthProvider);
+    final now = DateTime.now();
+    final isCurrentMonth = selectedMonth.year == now.year &&
+        selectedMonth.month == now.month;
+    if (vx > 300) {
+      // Swipe right → previous month
+      ref.read(homeSelectedMonthProvider.notifier).state =
+          DateTime(selectedMonth.year, selectedMonth.month - 1);
+    } else if (vx < -300 && !isCurrentMonth) {
+      // Swipe left → next month (blocked at current month)
+      ref.read(homeSelectedMonthProvider.notifier).state =
+          DateTime(selectedMonth.year, selectedMonth.month + 1);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedMonth = ref.watch(homeSelectedMonthProvider);
@@ -109,8 +128,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
 
           // ── Scrollable content ───────────────────────────────────────────
-          SafeArea(
+          GestureDetector(
+            onHorizontalDragEnd: _onHorizontalDragEnd,
+            behavior: HitTestBehavior.translucent,
+            child: SafeArea(
             child: CustomScrollView(
+              physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics()),
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
@@ -237,7 +261,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ],
             ),
-          ),
+            ), // SafeArea
+          ),   // GestureDetector
 
           // ── Floating bottom bar (mic + pencil) ───────────────────────────
           Positioned(
@@ -252,7 +277,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // Pencil button
+                    // Mirror spacer — same width as pencil+gap so mic stays centred
+                    const SizedBox(width: 60),
+                    // Mic button (centred)
+                    const MicButton(),
+                    const SizedBox(width: AppSpacing.sp4),
+                    // Pencil button (secondary, right of mic)
                     GestureDetector(
                       onTap: () => ref
                           .read(inputOverlayProvider.notifier)
@@ -260,8 +290,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Container(
                         width: 44,
                         height: 44,
-                        margin: const EdgeInsets.only(
-                            right: AppSpacing.sp4, bottom: 10),
+                        margin: const EdgeInsets.only(bottom: 10),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceL2,
                           shape: BoxShape.circle,
@@ -275,8 +304,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                     ),
-                    // Mic button
-                    const MicButton(),
                   ],
                 ),
               ),
@@ -310,28 +337,34 @@ class _MonthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        // Larger tap target for previous arrow
         GestureDetector(
           onTap: onPrevious,
-          child: const Icon(
-            CupertinoIcons.chevron_left,
-            color: AppColors.textSecondary,
-            size: 20,
+          child: const Padding(
+            padding: EdgeInsets.all(AppSpacing.sp3),
+            child: Icon(
+              CupertinoIcons.chevron_left,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
           ),
         ),
-        const SizedBox(width: AppSpacing.sp3),
         Text(
           _fmt.format(selectedMonth),
           style: AppTypography.title,
         ),
-        const SizedBox(width: AppSpacing.sp3),
+        // Larger tap target for next arrow
         GestureDetector(
           onTap: onNext,
-          child: Icon(
-            CupertinoIcons.chevron_right,
-            color: isCurrentMonth
-                ? AppColors.textTertiary // dimmed — can't go to future
-                : AppColors.textSecondary,
-            size: 20,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sp3),
+            child: Icon(
+              CupertinoIcons.chevron_right,
+              color: isCurrentMonth
+                  ? AppColors.textTertiary // dimmed — can't go to future
+                  : AppColors.textSecondary,
+              size: 20,
+            ),
           ),
         ),
       ],

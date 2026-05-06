@@ -83,8 +83,8 @@ class VoiceInputService {
     await _stt.listen(
       onResult: _onSttResult,
       localeId: 'en_IN',
-      listenFor: const Duration(seconds: 60), // hard cap
-      pauseFor: const Duration(seconds: 3),   // silence timeout
+      listenFor: const Duration(minutes: 5),  // hard cap — user stops manually
+      pauseFor: const Duration(minutes: 5),   // effectively disabled — no silence auto-stop
       listenOptions: SpeechListenOptions(
         partialResults: true,
         cancelOnError: true,

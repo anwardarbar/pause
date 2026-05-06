@@ -48,17 +48,21 @@ class RuleBasedParser {
   };
 
   static final _paymentPatterns = <PaymentMethod, RegExp>{
+    // STT often transcribes "GPay" → "G Pay", "PhonePe" → "Phone Pe"/"Phone Pay"
     PaymentMethod.upi: RegExp(
-      r'\b(gpay|google pay|phonepe|paytm|upi|bhim|neft|imps)\b',
+      r'\b(gpay|g\s+pay|google\s+pay|phonepe|phone\s+pe|phone\s+pay|paytm|pay\s+tm|amazon\s+pay|upi|bhim|neft|imps|cred)\b',
       caseSensitive: false,
     ),
     PaymentMethod.card: RegExp(
-      r'\b(card|swiped|credit|debit|visa|mastercard|rupay)\b',
+      r'\b(card|swiped|credit\s*card|debit\s*card|credit|debit|visa|mastercard|rupay)\b',
       caseSensitive: false,
     ),
-    PaymentMethod.cash: RegExp(r'\b(cash|note|coin)\b', caseSensitive: false),
+    PaymentMethod.cash: RegExp(
+      r'\b(cash|notes?|coins?|physically)\b',
+      caseSensitive: false,
+    ),
     PaymentMethod.netbanking: RegExp(
-      r'\b(netbanking|net banking|bank transfer|transferred)\b',
+      r'\b(netbanking|net\s+banking|bank\s+transfer|transferred|online\s+transfer)\b',
       caseSensitive: false,
     ),
   };

@@ -128,7 +128,7 @@ class _ConfirmationCardState extends ConsumerState<ConfirmationCard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('← discard',
+                Text('← back',
                     style: AppTypography.caption
                         .copyWith(color: AppColors.semanticExpense)),
                 Text('confirm →',

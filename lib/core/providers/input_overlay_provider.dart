@@ -83,7 +83,10 @@ class InputOverlayNotifier extends Notifier<InputOverlayState> {
   void showText() =>
       state = state.copyWith(isVisible: true, mode: InputMode.text);
 
-  void hide() => state = const InputOverlayState(); // full reset
+  void hide() {
+    ref.read(voiceInputServiceProvider).reset();
+    state = const InputOverlayState(); // full reset
+  }
 
   // ── Voice state passthrough ─────────────────────────────────────────────────
 
@@ -146,7 +149,14 @@ class InputOverlayNotifier extends Notifier<InputOverlayState> {
     hide();
   }
 
-  void discard() => hide();
+  void discard() {
+    // Keep overlay open — go back to input panel so user can re-record/retype
+    ref.read(voiceInputServiceProvider).reset();
+    state = InputOverlayState(
+      isVisible: true,
+      mode: state.mode, // preserve voice/text mode
+    );
+  }
 }
 
 final inputOverlayProvider =

@@ -50,25 +50,6 @@ class _InputOverlayState extends ConsumerState<InputOverlay>
     super.dispose();
   }
 
-  // ─── Visibility sync ──────────────────────────────────────────────────────
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _syncVisibility();
-  }
-
-  void _syncVisibility() {
-    final isVisible = ref.read(inputOverlayProvider).isVisible;
-    if (isVisible) {
-      _slideCtrl.forward();
-    } else {
-      _slideCtrl.reverse();
-      _textController.clear();
-      setState(() => _textError = null);
-    }
-  }
-
   // ─── Text submit ──────────────────────────────────────────────────────────
 
   void _submitText() {
@@ -89,15 +70,31 @@ class _InputOverlayState extends ConsumerState<InputOverlay>
   Widget build(BuildContext context) {
     final overlayState = ref.watch(inputOverlayProvider);
 
-    // Sync animation when visibility changes
-    if (overlayState.isVisible && _slideCtrl.isDismissed) {
-      _slideCtrl.forward();
-    } else if (!overlayState.isVisible && !_slideCtrl.isDismissed) {
-      _slideCtrl.reverse();
-      _textController.clear();
-    }
+    // Drive animation from state — side effects belong in ref.listen, not build()
+    ref.listen<InputOverlayState>(inputOverlayProvider, (prev, next) {
+      if (next.isVisible && _slideCtrl.isDismissed) {
+        _slideCtrl.forward();
+      } else if (!next.isVisible && !_slideCtrl.isDismissed) {
+        _slideCtrl.reverse();
+        _textController.clear();
+        setState(() => _textError = null);
+      }
+    });
 
-    return AnimatedBuilder(
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
+    return PopScope(
+      // When overlay is visible, intercept back: close keyboard first, then overlay
+      canPop: !overlayState.isVisible,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_textFocus.hasFocus) {
+          _textFocus.unfocus();
+        } else {
+          ref.read(inputOverlayProvider.notifier).hide();
+        }
+      },
+      child: AnimatedBuilder(
       animation: _slideCtrl,
       builder: (context, child) {
         if (_slideCtrl.isDismissed && !overlayState.isVisible) {
@@ -121,50 +118,86 @@ class _InputOverlayState extends ConsumerState<InputOverlay>
             ),
           ),
 
-          // ── Sliding sheet ────────────────────────────────────────────────
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SlideTransition(
-              position: _slideAnim,
+          // ── Content: centered card OR sliding input panel ──────────────
+          if (overlayState.hasResult) ...[
+            // Confirmation card — centred on screen
+            Align(
+              alignment: Alignment.center,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sp5,
+                  vertical: AppSpacing.sp8,
+                ),
+                child: ConfirmationCard(result: overlayState.parseResult!),
+              ),
+            ),
+            // Close × — lets user fully dismiss from the confirmation card
+            Positioned(
+              top: 0,
+              right: AppSpacing.sp4,
               child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.sp4,
-                    AppSpacing.sp4,
-                    AppSpacing.sp4,
-                    AppSpacing.sp6,
+                child: GestureDetector(
+                  onTap: () => ref.read(inputOverlayProvider.notifier).hide(),
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceL2,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.surfaceBorder),
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.xmark,
+                      size: 16,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
-                  child: overlayState.hasResult
-                      ? ConfirmationCard(
-                          result: overlayState.parseResult!)
-                      : _InputPanel(
-                          mode: overlayState.mode,
-                          voiceState: overlayState.voiceState,
-                          liveTranscript: overlayState.liveTranscript,
-                          textController: _textController,
-                          textFocus: _textFocus,
-                          textError: _textError,
-                          onTextChanged: (_) =>
-                              setState(() => _textError = null),
-                          onSubmitText: _submitText,
-                          onSwitchToText: () => ref
-                              .read(inputOverlayProvider.notifier)
-                              .showText(),
-                          onSwitchToVoice: () => ref
-                              .read(inputOverlayProvider.notifier)
-                              .showVoice(),
-                          onClose: () =>
-                              ref.read(inputOverlayProvider.notifier).hide(),
-                        ),
                 ),
               ),
             ),
-          ),
+          ] else
+            // Input panel — slides up from bottom
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: keyboardHeight,
+              child: SlideTransition(
+                position: _slideAnim,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.sp4,
+                      AppSpacing.sp4,
+                      AppSpacing.sp4,
+                      AppSpacing.sp6,
+                    ),
+                    child: _InputPanel(
+                      mode: overlayState.mode,
+                      voiceState: overlayState.voiceState,
+                      liveTranscript: overlayState.liveTranscript,
+                      textController: _textController,
+                      textFocus: _textFocus,
+                      textError: _textError,
+                      onTextChanged: (_) =>
+                          setState(() => _textError = null),
+                      onSubmitText: _submitText,
+                      onSwitchToText: () => ref
+                          .read(inputOverlayProvider.notifier)
+                          .showText(),
+                      onSwitchToVoice: () => ref
+                          .read(inputOverlayProvider.notifier)
+                          .showVoice(),
+                      onClose: () =>
+                          ref.read(inputOverlayProvider.notifier).hide(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
-    );
+      ),  // AnimatedBuilder
+    );    // PopScope
   }
 }
 

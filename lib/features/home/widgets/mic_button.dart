@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/input/voice_input_service.dart';
@@ -25,6 +27,7 @@ class _MicButtonState extends ConsumerState<MicButton>
   late final Animation<double> _shakeAnim;
 
   bool _isHoldMode = false;
+  Timer? _vibrationTimer;
 
   @override
   void initState() {
@@ -64,6 +67,7 @@ class _MicButtonState extends ConsumerState<MicButton>
 
   @override
   void dispose() {
+    _vibrationTimer?.cancel();
     _breatheCtrl.dispose();
     _pulseCtrl.dispose();
     _shakeCtrl.dispose();
@@ -73,6 +77,15 @@ class _MicButtonState extends ConsumerState<MicButton>
   // ─── Voice stream handlers ────────────────────────────────────────────────
 
   void _onVoiceState(VoiceState state) {
+    // Manage periodic haptic pulse while recording
+    _vibrationTimer?.cancel();
+    _vibrationTimer = null;
+    if (state == VoiceState.listening) {
+      _vibrationTimer = Timer.periodic(const Duration(milliseconds: 1200), (_) {
+        HapticFeedback.selectionClick();
+      });
+    }
+
     ref.read(inputOverlayProvider.notifier).updateVoiceState(state);
     if (state == VoiceState.error) {
       _shakeCtrl.forward(from: 0);
